@@ -7,13 +7,85 @@ This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute
 
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
 
-```{r}
-plot(cars)
-```
-
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+```{r}
+library(tidyverse)
+library(stringr)
+```
+
+
+```{r}
+df <- as_tibble(read.csv(file = 'Naive Bayes Training Set/spam_ham.csv'))
+df <- df %>% select(v1, v2) %>% mutate(target = ifelse(v1 == 'spam', 1, 0))
+head(df)
+```
+
+```{r}
+unique_words <- unique(tolower(unlist(strsplit(df$v2, " "))))
+unique_words <- unique_words[str_detect(unique_words, "^[:alpha:]+$")] %>% sort()
+df_Bayes <- tibble(df)
+```
+```{r}
+for(word in unique_words) {
+  df_Bayes[word] = 0
+}
+```
+```{r}
+strsplit(df_Bayes[[1, "v2"]], " ")[[1]]
+```
+
+```{r}
+for(n in 1:nrow(df_Bayes)) {
+  for(w in strsplit(df_Bayes[[n, "v2"]], " ")[[1]]) {
+    if(tolower(w) %in% unique_words) {
+      df_Bayes[n,tolower(w)] <- 1
+    }    
+  }    
+}
+```
+
+```{r}
+p_x_given_k <- function(df_Bayes, phrase, k) {
+  prob <- 1
+  for(word in unique(tolower(unlist(strsplit(phrase, " "))))) {
+    if(str_detect(word, "^[:alpha:]+$")) {
+      if(word %in% names(df_Bayes)) {
+        print(c(word, nrow(filter(df_Bayes, target == !!k, !!sym(word) == 1)), nrow(filter(df_Bayes, target == !!k))))
+        prob <- prob * nrow(filter(df_Bayes, target == !!k, !!sym(word) == 1)) / nrow(filter(df_Bayes, target == !!k))
+      } else {
+        prob <- 0
+      }
+    }
+  }
+  prob
+}
+```
+
+```{r}
+# Find the first five spam e-mails and their index values.
+df_Bayes %>% filter(target == 1) %>% slice(1:5)
+```
+```{r}
+# Use the exact phrase for the second e-mail as the phrase to be tested.
+phrase <- df_Bayes[3, "v2"][[1]]
+phrase
+```
+```{r}
+prob_1_phrase <- function(df_Bayes, phrase) {
+  p1 <- p_x_given_k(df_Bayes, phrase, 1) * nrow(filter(df_Bayes, target == 1))
+  p0 <- p_x_given_k(df_Bayes, phrase, 0) * nrow(filter(df_Bayes, target == 0))
+  p1 / (p1 + p0)
+}
+```
+```{r}
+prob_1_phrase(df_Bayes, phrase)
+```
+```{r}
+prob_1_phrase(df_Bayes, "available only")
+```
+
+
+
 
